@@ -1,0 +1,62 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  background: #fff;
+  font-family: system-ui, sans-serif;
+  gap: 16px;
+  padding: 16px;
+}
+
+#stage {
+  position: relative;
+  width: min(90vw, 420px);
+  aspect-ratio: 1170 / 1751;
+  background: #000;
+}
+
+.layer {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  pointer-events: none;
+  user-select: none;
+}
+
+/* adjustments bc idk why its offset weirdly */
+#character {
+  transform: translateY(4%);
+}
+.face {
+  transform: translate(-1.5%, -2%);
+}
+
+.hidden {
+  display: none;
+}
+
+#talk {
+  font-size: 18px;
+  padding: 14px 28px;
+  border: none;
+  border-radius: 999px;
+  background: #c0392b;
+  color: #fff;
+  cursor: pointer;
+  touch-action: none;
+}
+
+#talk.recording {
+  background: #27ae60;
+}
+
