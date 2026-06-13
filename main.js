@@ -9,6 +9,10 @@ const mouthOpen = el("mouth-open");
 const tongue = el("tongue");
 const btn = el("talk");
 const askBtn = el("ask");
+const foodBtn = el("food");
+const stage = el("stage");
+const foodCount = el("food-count");
+let foodEaten = 0;
 
 let isTalking = false;
 let mouthIsOpen = false;
@@ -72,6 +76,23 @@ let maxTimer;
 let PITCH = 2.0;
 let SPEED = 1.2;
 let RESPONSE_PITCH = 2.0;
+
+const FOODS = [
+  "sprites/food/food_r0_c0.png","sprites/food/food_r0_c1.png","sprites/food/food_r0_c2.png",
+  "sprites/food/food_r0_c3.png","sprites/food/food_r0_c4.png","sprites/food/food_r0_c5.png",
+  "sprites/food/food_r0_c6.png","sprites/food/food_r0_c7.png","sprites/food/food_r1_c0.png",
+  "sprites/food/food_r1_c2.png","sprites/food/food_r1_c3.png","sprites/food/food_r1_c4.png",
+  "sprites/food/food_r1_c5.png","sprites/food/food_r1_c6.png","sprites/food/food_r1_c7.png",
+  "sprites/food/food_r1_c9.png","sprites/food/food_r2_c0.png","sprites/food/food_r2_c1.png",
+  "sprites/food/food_r2_c2.png","sprites/food/food_r2_c3.png","sprites/food/food_r2_c4.png",
+  "sprites/food/food_r2_c5.png","sprites/food/food_r2_c6.png","sprites/food/food_r2_c7.png",
+  "sprites/food/food_r2_c8.png","sprites/food/food_r3_c0.png","sprites/food/food_r3_c1.png",
+  "sprites/food/food_r3_c2.png","sprites/food/food_r3_c3.png","sprites/food/food_r3_c4.png",
+  "sprites/food/food_r3_c5.png","sprites/food/food_r3_c6.png","sprites/food/food_r3_c7.png",
+  "sprites/food/food_r4_c3.png","sprites/food/food_r4_c4.png","sprites/food/food_r4_c5.png",
+  "sprites/food/food_r4_c6.png","sprites/food/food_r4_c7.png","sprites/food/food_r5_c3.png",
+  "sprites/food/food_r5_c4.png","sprites/food/food_r5_c5.png","sprites/food/food_r5_c6.png",
+];
 
 const RESPONSES = [
   "audio/response/talking-bennnn-noo.mp3",
@@ -271,10 +292,68 @@ function playPitched(buf) {
   loop();
 }
 
+async function playMunch() {
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  if (audioCtx.state === "suspended") await audioCtx.resume();
+  const arrayBuf = await fetch("audio/munch-sound-effect.mp3").then((r) => r.arrayBuffer());
+  const buf = await audioCtx.decodeAudioData(arrayBuf);
+  const src = audioCtx.createBufferSource();
+  src.buffer = buf;
+  src.connect(audioCtx.destination);
+  src.start();
+}
+
+function throwFood() {
+  const img = document.createElement("img");
+  img.src = FOODS[Math.floor(Math.random() * FOODS.length)];
+  img.style.cssText =
+    "position:absolute;width:32px;height:32px;object-fit:contain;pointer-events:none;user-select:none;z-index:10;image-rendering:pixelated;";
+
+  const sw = stage.offsetWidth;
+  const sh = stage.offsetHeight;
+  const size = 32;
+
+  const mouthX = sw * 0.445 - size / 2;
+  const mouthY = sh * 0.555 - size / 2;
+
+  const edge = Math.floor(Math.random() * 4);
+  let sx, sy;
+  if (edge === 0) { sx = -size; sy = Math.random() * sh; }
+  else if (edge === 1) { sx = sw; sy = Math.random() * sh; }
+  else if (edge === 2) { sx = Math.random() * sw; sy = -size; }
+  else { sx = Math.random() * sw; sy = sh; }
+
+  img.style.left = sx + "px";
+  img.style.top = sy + "px";
+  stage.appendChild(img);
+
+  const dist = Math.hypot(mouthX - sx, mouthY - sy);
+  const dur = 300 + dist * 0.9;
+
+  requestAnimationFrame(() =>
+    requestAnimationFrame(() => {
+      img.style.transition = `left ${dur}ms ease-in, top ${dur}ms ease-in`;
+      img.style.left = mouthX + "px";
+      img.style.top = mouthY + "px";
+    })
+  );
+
+  setTimeout(() => setMouth(true), Math.max(0, dur - 300));
+
+  setTimeout(() => {
+    img.remove();
+    setMouth(false);
+    playMunch();
+    foodCount.textContent = `Food eaten: ${++foodEaten}`;
+  }, dur);
+}
+
 btn.addEventListener("click", () => {
   if (recording || starting) stopRec();
   else startRec();
 });
+
+foodBtn.addEventListener("click", throwFood);
 
 askBtn.addEventListener("click", () => {
   if (!audioCtx)
