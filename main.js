@@ -72,6 +72,7 @@ let recording = false;
 let starting = false;
 let cancelStart = false;
 let maxTimer;
+let askMode = false;
 
 let PITCH = 2.0;
 let SPEED = 1.2;
@@ -101,10 +102,11 @@ const RESPONSES = [
   "audio/response/ho-ho-ho-ben.mp3",
 ];
 
-async function startRec() {
+async function startRec(isAsk = false) {
   if (recording || starting) return;
   starting = true;
   cancelStart = false;
+  askMode = isAsk;
   if (!audioCtx) {
     audioCtx = new (window.AudioContext || window.webkitAudioContext)();
   }
@@ -132,8 +134,10 @@ async function startRec() {
   mediaRecorder.onstop = handleStop;
   mediaRecorder.start();
   recording = true;
-  btn.classList.add("recording");
-  btn.textContent = "Stop";
+
+  const activeBtn = askMode ? askBtn : btn;
+  activeBtn.classList.add("recording");
+  activeBtn.textContent = "Stop";
 
   maxTimer = setTimeout(stopRec, 600000);
 }
@@ -148,15 +152,21 @@ function stopRec() {
   clearTimeout(maxTimer);
   if (mediaRecorder && mediaRecorder.state !== "inactive") mediaRecorder.stop();
   if (stream) stream.getTracks().forEach((t) => t.stop());
-  btn.classList.remove("recording");
-  btn.textContent = "Talk";
+
+  const activeBtn = askMode ? askBtn : btn;
+  activeBtn.classList.remove("recording");
+  activeBtn.textContent = askMode ? "Ask Question" : "Talk";
 }
 
 async function handleStop() {
-  if (!chunks.length) return;
-  const blob = new Blob(chunks, { type: mediaRecorder.mimeType });
-  const buf = await audioCtx.decodeAudioData(await blob.arrayBuffer());
-  playPitched(buf);
+  if (askMode) {
+    setTimeout(playResponse, 800);
+  } else {
+    if (!chunks.length) return;
+    const blob = new Blob(chunks, { type: mediaRecorder.mimeType });
+    const buf = await audioCtx.decodeAudioData(await blob.arrayBuffer());
+    playPitched(buf);
+  }
 }
 
 async function playResponse() {
@@ -350,14 +360,12 @@ function throwFood() {
 
 btn.addEventListener("click", () => {
   if (recording || starting) stopRec();
-  else startRec();
+  else startRec(false);
+});
+
+askBtn.addEventListener("click", () => {
+  if (recording || starting) stopRec();
+  else startRec(true);
 });
 
 foodBtn.addEventListener("click", throwFood);
-
-askBtn.addEventListener("click", () => {
-  if (!audioCtx)
-    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-  if (audioCtx.state === "suspended") audioCtx.resume();
-  setTimeout(playResponse, 800);
-});
