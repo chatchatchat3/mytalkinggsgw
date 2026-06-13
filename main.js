@@ -8,6 +8,7 @@ const mouthClosed = el("mouth-closed");
 const mouthOpen = el("mouth-open");
 const tongue = el("tongue");
 const btn = el("talk");
+const askBtn = el("ask");
 
 let isTalking = false;
 let mouthIsOpen = false;
@@ -71,12 +72,21 @@ let maxTimer;
 let PITCH = 2.0;
 let SPEED = 1.2;
 
+let askMode = false;
+const RESPONSES = [
+  "audio/response/talking-bennnn-noo.mp3",
+  "audio/response/talking-benn-yes.mp3",
+  "audio/response/talking-benn-ughhh.mp3",
+  "audio/response/ho-ho-ho-ben.mp3",
+];
+
 async function startRec() {
   if (recording || starting) return;
   starting = true;
   cancelStart = false;
-  if (!audioCtx)
+  if (!audioCtx) {
     audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  }
   if (audioCtx.state === "suspended") audioCtx.resume();
 
   try {
@@ -101,8 +111,9 @@ async function startRec() {
   mediaRecorder.onstop = handleStop;
   mediaRecorder.start();
   recording = true;
-  btn.classList.add("recording");
-  btn.textContent = "Stop";
+  const activeBtn = askMode ? askBtn : btn;
+  activeBtn.classList.add("recording");
+  activeBtn.textContent = "Stop";
 
   maxTimer = setTimeout(stopRec, 600000);
 }
@@ -119,13 +130,59 @@ function stopRec() {
   if (stream) stream.getTracks().forEach((t) => t.stop());
   btn.classList.remove("recording");
   btn.textContent = "Talk";
+  askBtn.classList.remove("recording");
+  askBtn.textContent = "Ask Question";
 }
 
 async function handleStop() {
   if (!chunks.length) return;
   const blob = new Blob(chunks, { type: mediaRecorder.mimeType });
   const buf = await audioCtx.decodeAudioData(await blob.arrayBuffer());
-  playPitched(buf);
+  if (askMode) {
+    setTimeout(playResponse, 800);
+  } else {
+    playPitched(buf);
+  }
+}
+
+async function playResponse() {
+  if (audioCtx.state === "suspended") await audioCtx.resume();
+  const path = RESPONSES[Math.floor(Math.random() * RESPONSES.length)];
+  const arrayBuf = await fetch(path).then((r) => r.arrayBuffer());
+  const buf = await audioCtx.decodeAudioData(arrayBuf);
+
+  const src = audioCtx.createBufferSource();
+  src.buffer = buf;
+
+  const analyser = audioCtx.createAnalyser();
+  analyser.fftSize = 1024;
+  src.connect(analyser);
+  analyser.connect(audioCtx.destination);
+
+  const data = new Uint8Array(analyser.fftSize);
+  const THRESHOLD = 0.04;
+
+  isTalking = true;
+  tongue.classList.add("hidden");
+
+  function loop() {
+    if (!isTalking) return;
+    analyser.getByteTimeDomainData(data);
+    let sum = 0;
+    for (let i = 0; i < data.length; i++) {
+      const v = (data[i] - 128) / 128;
+      sum += v * v;
+    }
+    setMouth(Math.sqrt(sum / data.length) > THRESHOLD);
+    requestAnimationFrame(loop);
+  }
+
+  src.onended = () => {
+    isTalking = false;
+    setMouth(false);
+  };
+  src.start();
+  loop();
 }
 
 function timeStretch(buf, factor) {
@@ -222,5 +279,10 @@ function playPitched(buf) {
 
 btn.addEventListener("click", () => {
   if (recording || starting) stopRec();
-  else startRec();
+  else { askMode = false; startRec(); }
+});
+
+askBtn.addEventListener("click", () => {
+  if (recording || starting) stopRec();
+  else { askMode = true; startRec(); }
 });

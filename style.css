@@ -45,7 +45,13 @@ body {
   display: none;
 }
 
-#talk {
+#buttons {
+  display: flex;
+  gap: 12px;
+}
+
+#talk,
+#ask {
   font-size: 18px;
   padding: 14px 28px;
   border: none;
@@ -56,7 +62,12 @@ body {
   touch-action: none;
 }
 
-#talk.recording {
+#ask {
+  background: #2980b9;
+}
+
+#talk.recording,
+#ask.recording {
   background: #27ae60;
 }
 
