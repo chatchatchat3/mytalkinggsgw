@@ -41,9 +41,6 @@ function scheduleEye(openEl, closedEl) {
 scheduleEye(leftOpen, leftClosed);
 scheduleEye(rightOpen, rightClosed);
 
-// freaky tongue movement but only when mouth is closed
-// freaky tongue emote
-
 function scheduleTongue() {
   setTimeout(
     () => {
@@ -71,6 +68,9 @@ let starting = false;
 let cancelStart = false;
 let maxTimer;
 
+let PITCH = 2.0;
+let SPEED = 1.2;
+
 async function startRec() {
   if (recording || starting) return;
   starting = true;
@@ -89,7 +89,6 @@ async function startRec() {
 
   starting = false;
   if (cancelStart) {
-    // button released before the mic was ready
     stream.getTracks().forEach((t) => t.stop());
     return;
   }
@@ -105,7 +104,7 @@ async function startRec() {
   btn.classList.add("recording");
   btn.textContent = "Stop";
 
-  maxTimer = setTimeout(stopRec, 600000); // 10 minute cap
+  maxTimer = setTimeout(stopRec, 600000);
 }
 
 function stopRec() {
@@ -129,10 +128,65 @@ async function handleStop() {
   playPitched(buf);
 }
 
+function timeStretch(buf, factor) {
+  if (Math.abs(factor - 1) < 0.001) return buf;
+  const { numberOfChannels, length, sampleRate } = buf;
+  const frame = 2048;
+  const synHop = frame >> 1;
+  const anaHop = Math.max(1, Math.round(synHop / factor));
+  const seek = 512;
+  const outLen = Math.floor(length * factor) + frame;
+
+  const win = new Float32Array(frame);
+  for (let i = 0; i < frame; i++)
+    win[i] = 0.5 - 0.5 * Math.cos((2 * Math.PI * i) / (frame - 1));
+
+  const out = audioCtx.createBuffer(numberOfChannels, outLen, sampleRate);
+  const template = new Float32Array(frame);
+
+  for (let ch = 0; ch < numberOfChannels; ch++) {
+    const input = buf.getChannelData(ch);
+    const output = out.getChannelData(ch);
+    let haveTemplate = false;
+    let outPos = 0;
+    let frameIdx = 0;
+
+    while (outPos + frame < outLen) {
+      const anaPos = frameIdx * anaHop;
+
+      let delta = 0;
+      if (haveTemplate) {
+        let best = -Infinity;
+        for (let d = -seek; d <= seek; d++) {
+          const p = anaPos + d;
+          if (p < 0 || p + frame >= length) continue;
+          let corr = 0;
+          for (let i = 0; i < frame; i += 8) corr += input[p + i] * template[i];
+          if (corr > best) {
+            best = corr;
+            delta = d;
+          }
+        }
+      }
+
+      const p = Math.max(0, Math.min(length - frame - 1, anaPos + delta));
+      for (let i = 0; i < frame; i++) output[outPos + i] += input[p + i] * win[i];
+
+      const t0 = p + synHop;
+      for (let i = 0; i < frame; i++) template[i] = input[t0 + i] || 0;
+      haveTemplate = true;
+
+      outPos += synHop;
+      frameIdx++;
+    }
+  }
+  return out;
+}
+
 function playPitched(buf) {
   const src = audioCtx.createBufferSource();
-  src.buffer = buf;
-  src.playbackRate.value = 2.0; // higher pitch
+  src.buffer = timeStretch(buf, PITCH / SPEED);
+  src.playbackRate.value = PITCH;
 
   const analyser = audioCtx.createAnalyser();
   analyser.fftSize = 1024;
