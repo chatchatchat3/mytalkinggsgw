@@ -71,6 +71,7 @@ let maxTimer;
 
 let PITCH = 2.0;
 let SPEED = 1.2;
+let RESPONSE_PITCH = 2.0;
 
 const RESPONSES = [
   "audio/response/talking-bennnn-noo.mp3",
@@ -144,7 +145,8 @@ async function playResponse() {
   const buf = await audioCtx.decodeAudioData(arrayBuf);
 
   const src = audioCtx.createBufferSource();
-  src.buffer = buf;
+  src.buffer = timeStretch(buf, RESPONSE_PITCH);
+  src.playbackRate.value = RESPONSE_PITCH;
 
   const analyser = audioCtx.createAnalyser();
   analyser.fftSize = 1024;
@@ -271,7 +273,7 @@ function playPitched(buf) {
 
 btn.addEventListener("click", () => {
   if (recording || starting) stopRec();
-  else { askMode = false; startRec(); }
+  else startRec();
 });
 
 askBtn.addEventListener("click", () => {
