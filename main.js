@@ -72,7 +72,6 @@ let maxTimer;
 let PITCH = 2.0;
 let SPEED = 1.2;
 
-let askMode = false;
 const RESPONSES = [
   "audio/response/talking-bennnn-noo.mp3",
   "audio/response/talking-benn-yes.mp3",
@@ -111,9 +110,8 @@ async function startRec() {
   mediaRecorder.onstop = handleStop;
   mediaRecorder.start();
   recording = true;
-  const activeBtn = askMode ? askBtn : btn;
-  activeBtn.classList.add("recording");
-  activeBtn.textContent = "Stop";
+  btn.classList.add("recording");
+  btn.textContent = "Stop";
 
   maxTimer = setTimeout(stopRec, 600000);
 }
@@ -130,19 +128,13 @@ function stopRec() {
   if (stream) stream.getTracks().forEach((t) => t.stop());
   btn.classList.remove("recording");
   btn.textContent = "Talk";
-  askBtn.classList.remove("recording");
-  askBtn.textContent = "Ask Question";
 }
 
 async function handleStop() {
   if (!chunks.length) return;
   const blob = new Blob(chunks, { type: mediaRecorder.mimeType });
   const buf = await audioCtx.decodeAudioData(await blob.arrayBuffer());
-  if (askMode) {
-    setTimeout(playResponse, 800);
-  } else {
-    playPitched(buf);
-  }
+  playPitched(buf);
 }
 
 async function playResponse() {
@@ -283,6 +275,8 @@ btn.addEventListener("click", () => {
 });
 
 askBtn.addEventListener("click", () => {
-  if (recording || starting) stopRec();
-  else { askMode = true; startRec(); }
+  if (!audioCtx)
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  if (audioCtx.state === "suspended") audioCtx.resume();
+  setTimeout(playResponse, 800);
 });
