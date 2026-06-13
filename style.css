@@ -60,3 +60,9 @@ body {
   background: #27ae60;
 }
 
+#version {
+  font-size: 11px;
+  color: #aaa;
+  margin-top: 4px;
+}
+
