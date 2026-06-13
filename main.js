@@ -17,6 +17,7 @@ const coalitionBtn = el("coalition");
 const buttons2 = el("buttons-2");
 let foodEaten = 0;
 const clones = [];
+let bgScaleX = 1;
 
 let isTalking = false;
 let mouthIsOpen = false;
@@ -362,10 +363,10 @@ function throwFood() {
     const scale = 1 + foodEaten * 0.002;
     character.style.transform = `translateY(4%) scaleX(${scale})`;
     for (const clone of clones) {
-      const ox = clone.side === "left" ? "-58%" : "58%";
+      const ox = clone.offsetX;
       clone.el.style.transform = `translateX(${ox}) translateY(4%) scaleX(${scale})`;
     }
-    if (foodEaten >= 50) buttons2.classList.remove("hidden");
+    if (foodEaten > 0 && foodEaten % 50 === 0) buttons2.classList.remove("hidden");
   }, dur);
 }
 
@@ -381,8 +382,7 @@ askBtn.addEventListener("click", () => {
 
 foodBtn.addEventListener("click", throwFood);
 
-function createClone(side) {
-  const offsetX = side === "left" ? "-58%" : "58%";
+function createClone(offsetX) {
   const scale = 1 + foodEaten * 0.002;
 
   const div = document.createElement("div");
@@ -423,17 +423,18 @@ function createClone(side) {
     }, 4000 + Math.random() * 6000);
   })();
 
-  clones.push({ el: div, side });
+  clones.push({ el: div, offsetX });
   return div;
 }
 
 coalitionBtn.addEventListener("click", () => {
-  if (clones.length > 0) return;
-  const leftClone  = createClone("left");
-  const rightClone = createClone("right");
+  const pct = (clones.length / 2 + 1) * 58;
+  const leftClone  = createClone(`-${pct}%`);
+  const rightClone = createClone(`${pct}%`);
   const chair = el("chair");
   stage.insertBefore(leftClone, chair);
   stage.insertBefore(rightClone, chair);
-  el("background").style.transform = "scaleX(3)";
+  bgScaleX += 1.2;
+  el("background").style.transform = `scaleX(${bgScaleX})`;
   buttons2.classList.add("hidden");
 });
