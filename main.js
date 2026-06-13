@@ -12,6 +12,7 @@ const askBtn = el("ask");
 const foodBtn = el("food");
 const stage = el("stage");
 const foodCount = el("food-count");
+const character = el("character");
 let foodEaten = 0;
 
 let isTalking = false;
@@ -355,6 +356,7 @@ function throwFood() {
     setMouth(false);
     playMunch();
     foodCount.textContent = `Food eaten: ${++foodEaten}`;
+    character.style.transform = `translateY(4%) scaleX(${1 + foodEaten * 0.0035})`;
   }, dur);
 }
 
