@@ -37,6 +37,12 @@ body {
 #character {
   transform: translateY(4%);
 }
+
+.clone-lizard {
+  position: absolute;
+  inset: 0;
+  filter: grayscale(100%);
+}
 .face {
   transform: translate(-1.5%, -2%);
 }
@@ -52,7 +58,8 @@ body {
 
 #talk,
 #ask,
-#food {
+#food,
+#coalition {
   font-size: 18px;
   padding: 14px 28px;
   border: none;
@@ -67,7 +74,8 @@ body {
   background: #2980b9;
 }
 
-#food {
+#food,
+#coalition {
   background: #27ae60;
 }
 

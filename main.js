@@ -13,7 +13,10 @@ const foodBtn = el("food");
 const stage = el("stage");
 const foodCount = el("food-count");
 const character = el("character");
+const coalitionBtn = el("coalition");
+const buttons2 = el("buttons-2");
 let foodEaten = 0;
+const clones = [];
 
 let isTalking = false;
 let mouthIsOpen = false;
@@ -356,7 +359,13 @@ function throwFood() {
     setMouth(false);
     playMunch();
     foodCount.textContent = `Food eaten: ${++foodEaten}`;
-    character.style.transform = `translateY(4%) scaleX(${1 + foodEaten * 0.0035})`;
+    const scale = 1 + foodEaten * 0.002;
+    character.style.transform = `translateY(4%) scaleX(${scale})`;
+    for (const clone of clones) {
+      const ox = clone.side === "left" ? "-58%" : "58%";
+      clone.el.style.transform = `translateX(${ox}) translateY(4%) scaleX(${scale})`;
+    }
+    if (foodEaten >= 50) buttons2.classList.remove("hidden");
   }, dur);
 }
 
@@ -371,3 +380,60 @@ askBtn.addEventListener("click", () => {
 });
 
 foodBtn.addEventListener("click", throwFood);
+
+function createClone(side) {
+  const offsetX = side === "left" ? "-58%" : "58%";
+  const scale = 1 + foodEaten * 0.002;
+
+  const div = document.createElement("div");
+  div.className = "clone-lizard";
+  div.style.transform = `translateX(${offsetX}) translateY(4%) scaleX(${scale})`;
+
+  const makeImg = (src, hidden = false) => {
+    const img = document.createElement("img");
+    img.src = src;
+    img.className = "layer face" + (hidden ? " hidden" : "");
+    img.alt = "";
+    return img;
+  };
+
+  const body = document.createElement("img");
+  body.src = "sprites/lizard/lizard_body.png";
+  body.className = "layer";
+  body.alt = "";
+
+  const leftOpen   = makeImg("sprites/lizard/lizard_left_eye_open.png");
+  const leftClosed = makeImg("sprites/lizard/lizard_left_eye_closed.png", true);
+  const rightOpen  = makeImg("sprites/lizard/lizard_right_eye_open.png");
+  const rightClosed= makeImg("sprites/lizard/lizard_right_eye_closed.png", true);
+  const mClosed    = makeImg("sprites/lizard/lizard_mouth.png");
+  const mOpen      = makeImg("sprites/lizard/lizard_mouth_open.png", true);
+  const tongueel   = makeImg("sprites/lizard/lizard_tongue.png", true);
+
+  div.append(body, leftOpen, leftClosed, rightOpen, rightClosed, mClosed, mOpen, tongueel);
+
+  scheduleEye(leftOpen, leftClosed);
+  scheduleEye(rightOpen, rightClosed);
+
+  (function cloneTongue() {
+    setTimeout(() => {
+      tongueel.classList.remove("hidden");
+      setTimeout(() => tongueel.classList.add("hidden"), 700 + Math.random() * 1200);
+      cloneTongue();
+    }, 4000 + Math.random() * 6000);
+  })();
+
+  clones.push({ el: div, side });
+  return div;
+}
+
+coalitionBtn.addEventListener("click", () => {
+  if (clones.length > 0) return;
+  const leftClone  = createClone("left");
+  const rightClone = createClone("right");
+  const chair = el("chair");
+  stage.insertBefore(leftClone, chair);
+  stage.insertBefore(rightClone, chair);
+  el("background").style.transform = "scaleX(3)";
+  buttons2.classList.add("hidden");
+});
