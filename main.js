@@ -105,7 +105,7 @@ async function startRec() {
   btn.classList.add("recording");
   btn.textContent = "Stop";
 
-  maxTimer = setTimeout(stopRec, 10000); // 10 second cap
+  maxTimer = setTimeout(stopRec, 600000); // 10 minute cap
 }
 
 function stopRec() {
