@@ -17,6 +17,7 @@ const coalitionBtn = el("coalition");
 const buttons2 = el("buttons-2");
 const normalSizeToggle = el("normal-size-toggle");
 const normalSizeCheckbox = el("normal-size");
+const muteMunchCheckbox = el("mute-munch");
 let foodEaten = 0;
 const animatedClones = [];
 let pairCount = 0;
@@ -24,6 +25,7 @@ let bgScaleX = 1;
 let lastScale = 1;
 let activeFood = 0;
 let normalSize = false;
+let muteMunch = false;
 
 const MAX_ON_SCREEN_FOOD = 15;
 
@@ -316,6 +318,7 @@ function playPitched(buf) {
 }
 
 async function playMunch() {
+  if (muteMunch) return;
   if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
   if (audioCtx.state === "suspended") await audioCtx.resume();
   const arrayBuf = await fetch("audio/munch-sound-effect.mp3").then((r) => r.arrayBuffer());
@@ -542,10 +545,12 @@ function sampleTriggers(n, p) {
   return Math.max(0, Math.round(mean + z * sd));
 }
 
+const FEED_CHANCE = 0.075;
+
 setInterval(() => {
   const totalClones = pairCount * 2;
   if (totalClones > 0) {
-    const triggers = sampleTriggers(totalClones, 0.05);
+    const triggers = sampleTriggers(totalClones, FEED_CHANCE);
     if (triggers > 0) registerFood(triggers);
   }
 
@@ -553,7 +558,7 @@ setInterval(() => {
   const sh = stage.offsetHeight;
   for (const c of animatedClones) {
     if (activeFood >= MAX_ON_SCREEN_FOOD) break;
-    if (Math.random() < 0.05) {
+    if (Math.random() < FEED_CHANCE) {
       const ox = (c.xPct / 100) * sw;
       const oy = ((c.yPct - 4) / 100) * sh;
       animateFeed(ox, oy, c.setMouthOpen, null);
@@ -561,7 +566,13 @@ setInterval(() => {
   }
 }, 250);
 
-const COALITION_COST = 50;
+const COALITION_BASE_COST = 15;
+const COALITION_GROWTH = 1.15;
+const coalitionCostEl = el("coalition-cost");
+
+function coalitionCost() {
+  return Math.floor(COALITION_BASE_COST * Math.pow(COALITION_GROWTH, pairCount));
+}
 
 function canAfford(n) {
   return foodEaten >= n;
@@ -588,10 +599,16 @@ normalSizeCheckbox.addEventListener("change", () => {
   applyLizardScale(true);
 });
 
+muteMunchCheckbox.addEventListener("change", () => {
+  muteMunch = muteMunchCheckbox.checked;
+});
+
 function updateCoalition() {
-  const pct = Math.min(foodEaten / COALITION_COST, 1) * 100;
+  const cost = coalitionCost();
+  coalitionCostEl.textContent = `${cost} food`;
+  const pct = Math.min(foodEaten / cost, 1) * 100;
   coalitionBtn.style.setProperty("--fill", pct + "%");
-  coalitionBtn.disabled = foodEaten < COALITION_COST;
+  coalitionBtn.disabled = foodEaten < cost;
 }
 
 const ROW_STEP_Y = 5;
@@ -625,9 +642,10 @@ function summonPair() {
 }
 
 coalitionBtn.addEventListener("click", () => {
-  if (!canAfford(COALITION_COST)) return;
+  const cost = coalitionCost();
+  if (!canAfford(cost)) return;
   summonPair();
-  spendFood(COALITION_COST);
+  spendFood(cost);
 });
 
 const PLINKO_COST = 1000;

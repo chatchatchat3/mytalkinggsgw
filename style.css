@@ -228,6 +228,7 @@ body {
   background: #27ae60;
 }
 
+#mute-munch-toggle,
 #normal-size-toggle {
   display: flex;
   align-items: center;
