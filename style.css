@@ -253,6 +253,24 @@ body {
   margin-top: 4px;
 }
 
+#server-shoutout {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: #888;
+  text-decoration: none;
+  margin-top: -12px;
+}
+
+#server-shoutout:hover {
+  color: #5865f2;
+}
+
+#server-shoutout svg {
+  vertical-align: middle;
+}
+
 #debug-panel.hidden {
   display: none;
 }
