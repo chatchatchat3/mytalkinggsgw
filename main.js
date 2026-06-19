@@ -16,8 +16,13 @@ const character = el("character");
 const coalitionBtn = el("coalition");
 const buttons2 = el("buttons-2");
 let foodEaten = 0;
-const clones = [];
+const animatedClones = [];
+let pairCount = 0;
 let bgScaleX = 1;
+let lastScale = 1;
+let activeFood = 0;
+
+const MAX_ON_SCREEN_FOOD = 15;
 
 let isTalking = false;
 let mouthIsOpen = false;
@@ -314,11 +319,27 @@ async function playMunch() {
   const buf = await audioCtx.decodeAudioData(arrayBuf);
   const src = audioCtx.createBufferSource();
   src.buffer = buf;
-  src.connect(audioCtx.destination);
+  const gain = audioCtx.createGain();
+  gain.gain.value = 0.5;
+  src.connect(gain);
+  gain.connect(audioCtx.destination);
   src.start();
 }
 
-function throwFood() {
+function registerFood(n = 1) {
+  foodEaten += n;
+  foodCount.textContent = `Food: ${foodEaten}`;
+  const scale = 1 + foodEaten * 0.002;
+  if (Math.abs(scale - lastScale) >= 0.005) {
+    lastScale = scale;
+    stage.style.setProperty("--lizard-scale", scale);
+  }
+  if (foodEaten > 0) buttons2.classList.remove("hidden");
+  updateCoalition();
+}
+
+function animateFeed(mouthOffsetX, mouthOffsetY, setMouthOpen, onEaten) {
+  activeFood++;
   const img = document.createElement("img");
   img.src = FOODS[Math.floor(Math.random() * FOODS.length)];
   img.style.cssText =
@@ -328,8 +349,8 @@ function throwFood() {
   const sh = stage.offsetHeight;
   const size = 32;
 
-  const mouthX = sw * 0.445 - size / 2;
-  const mouthY = sh * 0.555 - size / 2;
+  const mouthX = sw * 0.445 - size / 2 + mouthOffsetX;
+  const mouthY = sh * 0.555 - size / 2 + mouthOffsetY;
 
   const edge = Math.floor(Math.random() * 4);
   let sx, sy;
@@ -353,21 +374,19 @@ function throwFood() {
     })
   );
 
-  setTimeout(() => setMouth(true), Math.max(0, dur - 300));
+  setTimeout(() => setMouthOpen(true), Math.max(0, dur - 300));
 
   setTimeout(() => {
     img.remove();
-    setMouth(false);
+    activeFood--;
+    setMouthOpen(false);
     playMunch();
-    foodCount.textContent = `Food eaten: ${++foodEaten}`;
-    const scale = 1 + foodEaten * 0.002;
-    character.style.transform = `translateY(4%) scaleX(${scale})`;
-    for (const clone of clones) {
-      const ox = clone.offsetX;
-      clone.el.style.transform = `translateX(${ox}) translateY(4%) scaleX(${scale})`;
-    }
-    if (foodEaten > 0 && foodEaten % 50 === 0) buttons2.classList.remove("hidden");
+    if (onEaten) onEaten();
   }, dur);
+}
+
+function throwFood() {
+  animateFeed(0, 0, setMouth, registerFood);
 }
 
 btn.addEventListener("click", () => {
@@ -382,12 +401,63 @@ askBtn.addEventListener("click", () => {
 
 foodBtn.addEventListener("click", throwFood);
 
-function createClone(offsetX) {
-  const scale = 1 + foodEaten * 0.002;
+const CLONE_TRANSFORM = (xPct, yPct) =>
+  `translateX(${xPct}%) translateY(${yPct}%) scaleX(var(--lizard-scale, 1))`;
 
+let staticSpriteURL = null;
+const pendingStaticImgs = [];
+
+(function buildStaticSprite() {
+  const srcs = [
+    "sprites/lizard/lizard_body.png",
+    "sprites/lizard/lizard_left_eye_open.png",
+    "sprites/lizard/lizard_right_eye_open.png",
+    "sprites/lizard/lizard_mouth.png",
+  ];
+  const imgs = srcs.map((src) => {
+    const im = new Image();
+    im.src = src;
+    return im;
+  });
+  Promise.all(imgs.map((im) => im.decode().catch(() => {}))).then(() => {
+    const w = imgs[0].naturalWidth || 1170;
+    const h = imgs[0].naturalHeight || 1751;
+    const canvas = document.createElement("canvas");
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext("2d");
+    ctx.filter = "grayscale(100%)";
+    const dx = -0.015 * w;
+    const dy = -0.02 * h;
+    imgs.forEach((im, i) => {
+      if (i === 0) ctx.drawImage(im, 0, 0, w, h);
+      else ctx.drawImage(im, dx, dy, w, h);
+    });
+    try {
+      staticSpriteURL = canvas.toDataURL("image/png");
+    } catch (e) {
+      staticSpriteURL = "sprites/lizard/lizard_body.png";
+      document.documentElement.classList.add("static-fallback");
+    }
+    for (const im of pendingStaticImgs) im.src = staticSpriteURL;
+    pendingStaticImgs.length = 0;
+  });
+})();
+
+function createStaticClone(xPct, yPct) {
+  const img = document.createElement("img");
+  img.className = "clone-static";
+  img.alt = "";
+  img.style.transform = CLONE_TRANSFORM(xPct, yPct);
+  if (staticSpriteURL) img.src = staticSpriteURL;
+  else pendingStaticImgs.push(img);
+  return img;
+}
+
+function createAnimatedClone(xPct, yPct) {
   const div = document.createElement("div");
   div.className = "clone-lizard";
-  div.style.transform = `translateX(${offsetX}) translateY(4%) scaleX(${scale})`;
+  div.style.transform = CLONE_TRANSFORM(xPct, yPct);
 
   const makeImg = (src, hidden = false) => {
     const img = document.createElement("img");
@@ -412,29 +482,135 @@ function createClone(offsetX) {
 
   div.append(body, leftOpen, leftClosed, rightOpen, rightClosed, mClosed, mOpen, tongueel);
 
-  scheduleEye(leftOpen, leftClosed);
-  scheduleEye(rightOpen, rightClosed);
+  const setMouthOpen = (open) => {
+    mOpen.classList.toggle("hidden", !open);
+    mClosed.classList.toggle("hidden", open);
+    if (open) tongueel.classList.add("hidden");
+  };
 
-  (function cloneTongue() {
+  let blinking = false;
+  const blink = () => {
+    if (blinking) return;
+    blinking = true;
+    leftOpen.classList.add("hidden");  leftClosed.classList.remove("hidden");
+    rightOpen.classList.add("hidden"); rightClosed.classList.remove("hidden");
     setTimeout(() => {
-      tongueel.classList.remove("hidden");
-      setTimeout(() => tongueel.classList.add("hidden"), 700 + Math.random() * 1200);
-      cloneTongue();
-    }, 4000 + Math.random() * 6000);
-  })();
+      leftClosed.classList.add("hidden");  leftOpen.classList.remove("hidden");
+      rightClosed.classList.add("hidden"); rightOpen.classList.remove("hidden");
+      blinking = false;
+    }, 120);
+  };
 
-  clones.push({ el: div, offsetX });
+  const flickTongue = () => {
+    if (mClosed.classList.contains("hidden")) return;
+    tongueel.classList.remove("hidden");
+    setTimeout(() => tongueel.classList.add("hidden"), 700 + Math.random() * 1200);
+  };
+
+  animatedClones.push({ xPct, yPct, setMouthOpen, blink, flickTongue });
   return div;
 }
 
+function createClone(xPct, yPct) {
+  return yPct === 4
+    ? createAnimatedClone(xPct, yPct)
+    : createStaticClone(xPct, yPct);
+}
+
+setInterval(() => {
+  for (const c of animatedClones) {
+    if (Math.random() < 0.12) c.blink();
+    if (Math.random() < 0.04) c.flickTongue();
+  }
+}, 350);
+
+function sampleTriggers(n, p) {
+  if (n <= 64) {
+    let c = 0;
+    for (let i = 0; i < n; i++) if (Math.random() < p) c++;
+    return c;
+  }
+  const mean = n * p;
+  const sd = Math.sqrt(n * p * (1 - p));
+  const z = Math.sqrt(-2 * Math.log(Math.random())) * Math.cos(2 * Math.PI * Math.random());
+  return Math.max(0, Math.round(mean + z * sd));
+}
+
+setInterval(() => {
+  const totalClones = pairCount * 2;
+  if (totalClones > 0) {
+    const triggers = sampleTriggers(totalClones, 0.05);
+    if (triggers > 0) registerFood(triggers);
+  }
+
+  const sw = stage.offsetWidth;
+  const sh = stage.offsetHeight;
+  for (const c of animatedClones) {
+    if (activeFood >= MAX_ON_SCREEN_FOOD) break;
+    if (Math.random() < 0.05) {
+      const ox = (c.xPct / 100) * sw;
+      const oy = ((c.yPct - 4) / 100) * sh;
+      animateFeed(ox, oy, c.setMouthOpen, null);
+    }
+  }
+}, 250);
+
+const COALITION_COST = 50;
+
+function updateCoalition() {
+  const pct = Math.min(foodEaten / COALITION_COST, 1) * 100;
+  coalitionBtn.style.setProperty("--fill", pct + "%");
+  coalitionBtn.disabled = foodEaten < COALITION_COST;
+}
+
+const ROW_STEP_Y = 5;
+const STACK_ROWS = 16;
+const ROW_MAGS = [14.5, 29, 43.5, 58, 72.5, 87, 101.5, 116];
+const pairSlots = [];
+pairSlots.push({ mag: 58, yPct: 4, expand: true });
+pairSlots.push({ mag: 116, yPct: 4, expand: true });
+for (const mag of [29, 87]) pairSlots.push({ mag, yPct: 4, expand: false });
+for (let row = 1; row <= STACK_ROWS; row++) {
+  for (const mag of ROW_MAGS) {
+    pairSlots.push({ mag, yPct: 4 - row * ROW_STEP_Y, expand: false });
+  }
+}
+
+function summonPair() {
+  const idx = pairCount++;
+  if (idx >= pairSlots.length) {
+    return;
+  }
+  const slot = pairSlots[idx];
+  const left = createClone(-slot.mag, slot.yPct);
+  const right = createClone(slot.mag, slot.yPct);
+  const ref = el("background").nextSibling;
+  stage.insertBefore(right, ref);
+  stage.insertBefore(left, ref);
+  if (slot.expand) {
+    bgScaleX += 1.2;
+    el("background").style.transform = `scaleX(${bgScaleX})`;
+  }
+}
+
 coalitionBtn.addEventListener("click", () => {
-  const pct = (clones.length / 2 + 1) * 58;
-  const leftClone  = createClone(`-${pct}%`);
-  const rightClone = createClone(`${pct}%`);
-  const chair = el("chair");
-  stage.insertBefore(leftClone, chair);
-  stage.insertBefore(rightClone, chair);
-  bgScaleX += 1.2;
-  el("background").style.transform = `scaleX(${bgScaleX})`;
-  buttons2.classList.add("hidden");
+  if (foodEaten < COALITION_COST) return;
+  summonPair();
+  foodEaten -= COALITION_COST;
+  foodCount.textContent = `Food: ${foodEaten}`;
+  updateCoalition();
 });
+
+if (new URLSearchParams(location.search).get("debug") === "true") {
+  el("debug-panel").classList.remove("hidden");
+
+  el("debug-add-food").addEventListener("click", () => {
+    const n = Math.max(1, parseInt(el("debug-food-amount").value, 10) || 0);
+    registerFood(n);
+  });
+
+  el("debug-add-clones").addEventListener("click", () => {
+    const n = Math.max(1, parseInt(el("debug-clone-amount").value, 10) || 0);
+    for (let i = 0; i < n; i++) summonPair();
+  });
+}

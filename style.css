@@ -21,6 +21,7 @@ body {
   width: min(90vw, 420px);
   aspect-ratio: 1170 / 1751;
   background: #000;
+  --lizard-scale: 1;
 }
 
 .layer {
@@ -33,14 +34,28 @@ body {
   user-select: none;
 }
 
-/* adjustments bc idk why its offset weirdly */
 #character {
-  transform: translateY(4%);
+  transform: translateY(4%) scaleX(var(--lizard-scale, 1));
 }
 
 .clone-lizard {
   position: absolute;
   inset: 0;
+  filter: grayscale(100%);
+  contain: layout paint;
+}
+
+.clone-static {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  pointer-events: none;
+  user-select: none;
+  contain: layout paint;
+}
+.static-fallback .clone-static {
   filter: grayscale(100%);
 }
 .face {
@@ -74,9 +89,38 @@ body {
   background: #2980b9;
 }
 
-#food,
-#coalition {
+#food {
   background: #27ae60;
+}
+
+#coalition {
+  position: relative;
+  overflow: hidden;
+  background: #7f8c8d;
+  --fill: 0%;
+}
+
+#coalition[disabled] {
+  cursor: default;
+}
+
+#coalition-fill {
+  position: absolute;
+  inset: 0;
+  width: var(--fill);
+  background: #27ae60;
+  transition: width 250ms ease;
+}
+
+#coalition-label {
+  position: relative;
+  z-index: 1;
+}
+
+#coalition-label small {
+  display: block;
+  font-size: 12px;
+  opacity: 0.85;
 }
 
 #talk.recording,
@@ -93,5 +137,44 @@ body {
   font-size: 11px;
   color: #aaa;
   margin-top: 4px;
+}
+
+#debug-panel.hidden {
+  display: none;
+}
+
+#debug-panel {
+  margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  border: 1px dashed #999;
+  border-radius: 8px;
+  background: #f4f4f4;
+}
+
+.debug-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.debug-row button {
+  font-size: 14px;
+  padding: 8px 14px;
+  border: none;
+  border-radius: 6px;
+  background: #555;
+  color: #fff;
+  cursor: pointer;
+}
+
+.debug-row input {
+  width: 80px;
+  font-size: 14px;
+  padding: 6px 8px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
 }
 
