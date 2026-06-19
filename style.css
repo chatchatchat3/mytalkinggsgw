@@ -203,6 +203,16 @@ body {
   cursor: default;
 }
 
+#plinko-shake {
+  font-size: 16px;
+  padding: 12px 22px;
+  border: none;
+  border-radius: 999px;
+  background: #c0392b;
+  color: #fff;
+  cursor: pointer;
+}
+
 #plinko-drop-fill,
 #plinko-drop5-fill {
   position: absolute;

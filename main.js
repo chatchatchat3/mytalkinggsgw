@@ -677,6 +677,7 @@ const plinkoPanel = el("plinko-panel");
 const plinkoBoard = el("plinko-board");
 const plinkoDropBtn = el("plinko-drop");
 const plinkoDrop5Btn = el("plinko-drop5");
+const plinkoShakeBtn = el("plinko-shake");
 
 let plinkoUnlocked = false;
 let plinkoGame = null;
@@ -742,6 +743,9 @@ plinkoUnlockBtn.addEventListener("click", () => {
 plinkoDropBtn.addEventListener("click", () => tryDrop());
 plinkoDrop5Btn.addEventListener("click", () => {
   for (let i = 0; i < 5; i++) setTimeout(() => tryDrop(), i * 220);
+});
+plinkoShakeBtn.addEventListener("click", () => {
+  if (plinkoGame) plinkoGame.shake();
 });
 
 if (new URLSearchParams(location.search).get("debug") === "true") {

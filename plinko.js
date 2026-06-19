@@ -247,6 +247,18 @@ function createPlinkoGame(opts) {
     horses.length = 0;
   }
 
+  function shake() {
+    for (const horse of horses) {
+      for (const body of Composite.allBodies(horse.composite)) {
+        Body.setVelocity(body, {
+          x: Common.random(-9, 9),
+          y: Common.random(-12, -4),
+        });
+        Body.setAngularVelocity(body, Common.random(-0.3, 0.3));
+      }
+    }
+  }
+
   const HEAD_LIMIT = Math.PI / 4;
 
   function normalizeAngle(a) {
@@ -347,5 +359,5 @@ function createPlinkoGame(opts) {
 
   preloadSprites();
 
-  return { dropHorse, reset, start, stop, WIDTH, HEIGHT, WALL };
+  return { dropHorse, reset, shake, start, stop, WIDTH, HEIGHT, WALL };
 }
