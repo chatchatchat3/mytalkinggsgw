@@ -3,15 +3,15 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Horse Plinko</title>
+    <title>Jahorse Plinko</title>
     <link rel="stylesheet" href="plinko.css" />
   </head>
   <body>
-    <h1>Horse Plinko</h1>
+    <h1>jahorse plinko</h1>
 
     <div id="hud">
       <span id="score">Score: 0</span>
-      <span id="dropped">Horses dropped: 0</span>
+      <span id="dropped">Jahorses dropped: 0</span>
     </div>
 
     <div id="board-wrap">
@@ -19,12 +19,57 @@
     </div>
 
     <div id="controls">
-      <button id="drop">Drop a horse</button>
+      <button id="drop">Drop a Jahorse</button>
       <button id="drop-many">Drop 5</button>
       <button id="reset">Reset</button>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/matter-js@0.20.0/build/matter.min.js"></script>
     <script src="plinko.js"></script>
+    <script>
+      const scoreEl = document.getElementById("score");
+      const droppedEl = document.getElementById("dropped");
+      const board = document.getElementById("board");
+      let score = 0;
+      let dropped = 0;
+
+      function updateHud() {
+        scoreEl.textContent = "Score: " + score;
+        droppedEl.textContent = "Jahorses dropped: " + dropped;
+      }
+
+      const game = createPlinkoGame({
+        canvas: board,
+        buckets: [0, 0, 1, 2, 5, 2, 1, 0, 0],
+        onLand: (mult) => {
+          score += mult;
+          updateHud();
+          return mult > 0 ? { text: "+" + mult, color: "#fff" } : null;
+        },
+      });
+      game.start();
+
+      function drop(x) {
+        game.dropHorse(x);
+        dropped++;
+        updateHud();
+      }
+
+      document.getElementById("drop").addEventListener("click", () => drop());
+      document.getElementById("drop-many").addEventListener("click", () => {
+        for (let i = 0; i < 5; i++) setTimeout(() => drop(), i * 220);
+      });
+      document.getElementById("reset").addEventListener("click", () => {
+        game.reset();
+        score = 0;
+        dropped = 0;
+        updateHud();
+      });
+      board.addEventListener("click", (e) => {
+        const rect = board.getBoundingClientRect();
+        const x = ((e.clientX - rect.left) / rect.width) * game.WIDTH;
+        drop(Math.max(game.WALL, Math.min(game.WIDTH - game.WALL, x)));
+      });
+    </script>
   </body>
 </html>

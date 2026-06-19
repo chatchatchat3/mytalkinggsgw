@@ -15,12 +15,15 @@ const foodCount = el("food-count");
 const character = el("character");
 const coalitionBtn = el("coalition");
 const buttons2 = el("buttons-2");
+const normalSizeToggle = el("normal-size-toggle");
+const normalSizeCheckbox = el("normal-size");
 let foodEaten = 0;
 const animatedClones = [];
 let pairCount = 0;
 let bgScaleX = 1;
 let lastScale = 1;
 let activeFood = 0;
+let normalSize = false;
 
 const MAX_ON_SCREEN_FOOD = 15;
 
@@ -326,16 +329,19 @@ async function playMunch() {
   src.start();
 }
 
-function registerFood(n = 1) {
-  foodEaten += n;
-  foodCount.textContent = `Food: ${foodEaten}`;
-  const scale = 1 + foodEaten * 0.002;
-  if (Math.abs(scale - lastScale) >= 0.005) {
+function applyLizardScale(force) {
+  const scale = normalSize ? 1 : 1 + foodEaten * 0.002;
+  if (force || Math.abs(scale - lastScale) >= 0.005) {
     lastScale = scale;
     stage.style.setProperty("--lizard-scale", scale);
   }
-  if (foodEaten > 0) buttons2.classList.remove("hidden");
-  updateCoalition();
+}
+
+function registerFood(n = 1) {
+  foodEaten += n;
+  foodCount.textContent = `Food: ${foodEaten}`;
+  applyLizardScale();
+  refreshAffordances();
 }
 
 function animateFeed(mouthOffsetX, mouthOffsetY, setMouthOpen, onEaten) {
@@ -557,6 +563,31 @@ setInterval(() => {
 
 const COALITION_COST = 50;
 
+function canAfford(n) {
+  return foodEaten >= n;
+}
+
+function spendFood(n) {
+  if (foodEaten < n) return false;
+  foodEaten -= n;
+  foodCount.textContent = `Food: ${foodEaten}`;
+  refreshAffordances();
+  return true;
+}
+
+function refreshAffordances() {
+  if (foodEaten > 0) buttons2.classList.remove("hidden");
+  if (foodEaten > 500) normalSizeToggle.classList.remove("hidden");
+  updateCoalition();
+  updatePlinkoUnlock();
+  if (plinkoGame) updatePlinkoButtons();
+}
+
+normalSizeCheckbox.addEventListener("change", () => {
+  normalSize = normalSizeCheckbox.checked;
+  applyLizardScale(true);
+});
+
 function updateCoalition() {
   const pct = Math.min(foodEaten / COALITION_COST, 1) * 100;
   coalitionBtn.style.setProperty("--fill", pct + "%");
@@ -594,11 +625,85 @@ function summonPair() {
 }
 
 coalitionBtn.addEventListener("click", () => {
-  if (foodEaten < COALITION_COST) return;
+  if (!canAfford(COALITION_COST)) return;
   summonPair();
-  foodEaten -= COALITION_COST;
-  foodCount.textContent = `Food: ${foodEaten}`;
-  updateCoalition();
+  spendFood(COALITION_COST);
+});
+
+const PLINKO_COST = 1000;
+const PLINKO_BET = 500;
+const PLINKO_DROP5_COST = PLINKO_BET * 5;
+const PLINKO_BUCKETS = [0, 0, 1, 2, 5, 2, 1, 0, 0];
+
+const plinkoUnlockBtn = el("plinko-unlock");
+const plinkoPanel = el("plinko-panel");
+const plinkoBoard = el("plinko-board");
+const plinkoDropBtn = el("plinko-drop");
+const plinkoDrop5Btn = el("plinko-drop5");
+
+let plinkoUnlocked = false;
+let plinkoGame = null;
+
+function updatePlinkoUnlock() {
+  if (plinkoUnlocked) return;
+  const pct = Math.min(foodEaten / PLINKO_COST, 1) * 100;
+  plinkoUnlockBtn.style.setProperty("--fill", pct + "%");
+  plinkoUnlockBtn.disabled = foodEaten < PLINKO_COST;
+}
+
+function updatePlinkoButtons() {
+  const pct1 = Math.min(foodEaten / PLINKO_BET, 1) * 100;
+  plinkoDropBtn.style.setProperty("--fill", pct1 + "%");
+  plinkoDropBtn.disabled = foodEaten < PLINKO_BET;
+
+  const pct5 = Math.min(foodEaten / PLINKO_DROP5_COST, 1) * 100;
+  plinkoDrop5Btn.style.setProperty("--fill", pct5 + "%");
+  plinkoDrop5Btn.disabled = foodEaten < PLINKO_DROP5_COST;
+}
+
+function tryDrop(x) {
+  if (!plinkoGame) return;
+  if (!spendFood(PLINKO_BET)) return;
+  plinkoGame.dropHorse(x);
+}
+
+function initPlinko() {
+  plinkoGame = createPlinkoGame({
+    canvas: plinkoBoard,
+    buckets: PLINKO_BUCKETS,
+    onLand: (mult) => {
+      const win = PLINKO_BET * mult;
+      if (win > 0) registerFood(win);
+      updatePlinkoButtons();
+      return win > 0
+        ? { text: "+" + win, color: "#ffd166" }
+        : { text: "-" + PLINKO_BET, color: "#ff5a5a" };
+    },
+  });
+  plinkoGame.start();
+  updatePlinkoButtons();
+
+  plinkoBoard.addEventListener("click", (e) => {
+    const rect = plinkoBoard.getBoundingClientRect();
+    const x = ((e.clientX - rect.left) / rect.width) * plinkoGame.WIDTH;
+    tryDrop(
+      Math.max(plinkoGame.WALL, Math.min(plinkoGame.WIDTH - plinkoGame.WALL, x))
+    );
+  });
+}
+
+plinkoUnlockBtn.addEventListener("click", () => {
+  if (plinkoUnlocked || !spendFood(PLINKO_COST)) return;
+  plinkoUnlocked = true;
+  plinkoUnlockBtn.classList.add("hidden");
+  plinkoPanel.classList.remove("hidden");
+  initPlinko();
+  plinkoPanel.scrollIntoView({ behavior: "smooth", block: "start" });
+});
+
+plinkoDropBtn.addEventListener("click", () => tryDrop());
+plinkoDrop5Btn.addEventListener("click", () => {
+  for (let i = 0; i < 5; i++) setTimeout(() => tryDrop(), i * 220);
 });
 
 if (new URLSearchParams(location.search).get("debug") === "true") {

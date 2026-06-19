@@ -84,8 +84,43 @@
           <small>50 food</small>
         </span>
       </button>
+      <button id="plinko-unlock" disabled>
+        <span id="plinko-unlock-fill"></span>
+        <span id="plinko-unlock-label">
+          Unlock Jahorse Plinko
+          <small>1000 food</small>
+        </span>
+      </button>
     </div>
+    <label id="normal-size-toggle" class="hidden">
+      <input type="checkbox" id="normal-size" />
+      make him normal sized
+    </label>
     <p id="food-count">Food: 0</p>
+
+    <div id="plinko-panel" class="hidden">
+      <h1 id="plinko-title">jahorse plinko</h1>
+      <div id="plinko-board-wrap">
+        <canvas id="plinko-board" width="500" height="640"></canvas>
+      </div>
+      <div id="plinko-controls">
+        <button id="plinko-drop" disabled>
+          <span id="plinko-drop-fill"></span>
+          <span class="plinko-btn-label">
+            Drop a jahorse
+            <small>500 food</small>
+          </span>
+        </button>
+        <button id="plinko-drop5" disabled>
+          <span id="plinko-drop5-fill"></span>
+          <span class="plinko-btn-label">
+            Drop 5
+            <small>2500 food</small>
+          </span>
+        </button>
+      </div>
+    </div>
+
     <footer id="version">v2.0</footer>
 
     <div id="debug-panel" class="hidden">
@@ -101,6 +136,8 @@
 
     <script data-goatcounter="https://mytalkinggsgw.goatcounter.com/count"
             async src="//gc.zgo.at/count.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/matter-js@0.20.0/build/matter.min.js"></script>
+    <script src="plinko.js"></script>
     <script src="main.js"></script>
   </body>
 </html>
