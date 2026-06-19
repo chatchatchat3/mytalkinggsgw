@@ -18,6 +18,7 @@ const buttons2 = el("buttons-2");
 const normalSizeToggle = el("normal-size-toggle");
 const normalSizeCheckbox = el("normal-size");
 const muteMunchCheckbox = el("mute-munch");
+const lagFreeCheckbox = el("lag-free");
 let foodEaten = 0;
 const animatedClones = [];
 let pairCount = 0;
@@ -26,6 +27,7 @@ let lastScale = 1;
 let activeFood = 0;
 let normalSize = false;
 let muteMunch = false;
+let lagFree = false;
 
 const MAX_ON_SCREEN_FOOD = 15;
 
@@ -40,6 +42,7 @@ function setMouth(open) {
 }
 
 function blink(openEl, closedEl) {
+  if (lagFree) return;
   openEl.classList.add("hidden");
   closedEl.classList.remove("hidden");
   setTimeout(() => {
@@ -64,7 +67,7 @@ scheduleEye(rightOpen, rightClosed);
 function scheduleTongue() {
   setTimeout(
     () => {
-      if (!mouthIsOpen && !isTalking) {
+      if (!mouthIsOpen && !isTalking && !lagFree) {
         tongue.classList.remove("hidden");
         setTimeout(
           () => tongue.classList.add("hidden"),
@@ -347,12 +350,20 @@ function registerFood(n = 1) {
   refreshAffordances();
 }
 
+const FOOD_STYLE =
+  "position:absolute;width:32px;height:32px;object-fit:contain;pointer-events:none;user-select:none;z-index:10;image-rendering:pixelated;";
+const foodPool = [];
+
 function animateFeed(mouthOffsetX, mouthOffsetY, setMouthOpen, onEaten) {
+  if (lagFree) {
+    playMunch();
+    if (onEaten) onEaten();
+    return;
+  }
   activeFood++;
-  const img = document.createElement("img");
+  const img = foodPool.pop() || document.createElement("img");
+  img.style.cssText = FOOD_STYLE;
   img.src = FOODS[Math.floor(Math.random() * FOODS.length)];
-  img.style.cssText =
-    "position:absolute;width:32px;height:32px;object-fit:contain;pointer-events:none;user-select:none;z-index:10;image-rendering:pixelated;";
 
   const sw = stage.offsetWidth;
   const sh = stage.offsetHeight;
@@ -387,6 +398,7 @@ function animateFeed(mouthOffsetX, mouthOffsetY, setMouthOpen, onEaten) {
 
   setTimeout(() => {
     img.remove();
+    foodPool.push(img);
     activeFood--;
     setMouthOpen(false);
     playMunch();
@@ -527,6 +539,7 @@ function createClone(xPct, yPct) {
 }
 
 setInterval(() => {
+  if (lagFree) return;
   for (const c of animatedClones) {
     if (Math.random() < 0.12) c.blink();
     if (Math.random() < 0.04) c.flickTongue();
@@ -553,6 +566,8 @@ setInterval(() => {
     const triggers = sampleTriggers(totalClones, FEED_CHANCE);
     if (triggers > 0) registerFood(triggers);
   }
+
+  if (lagFree) return;
 
   const sw = stage.offsetWidth;
   const sh = stage.offsetHeight;
@@ -601,6 +616,10 @@ normalSizeCheckbox.addEventListener("change", () => {
 
 muteMunchCheckbox.addEventListener("change", () => {
   muteMunch = muteMunchCheckbox.checked;
+});
+
+lagFreeCheckbox.addEventListener("change", () => {
+  lagFree = lagFreeCheckbox.checked;
 });
 
 function updateCoalition() {
@@ -693,6 +712,7 @@ function initPlinko() {
       const win = PLINKO_BET * mult;
       if (win > 0) registerFood(win);
       updatePlinkoButtons();
+      if (lagFree) return null;
       return win > 0
         ? { text: "+" + win, color: "#ffd166" }
         : { text: "-" + PLINKO_BET, color: "#ff5a5a" };

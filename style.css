@@ -229,6 +229,7 @@ body {
 }
 
 #mute-munch-toggle,
+#lag-free-toggle,
 #normal-size-toggle {
   display: flex;
   align-items: center;
@@ -236,6 +237,13 @@ body {
   font-size: 13px;
   color: #555;
   cursor: pointer;
+}
+
+#toggle-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 16px;
 }
 
 #normal-size-toggle.hidden {
